@@ -42,7 +42,7 @@ namespace CalculatorSolution.Tests
         [Theory(DisplayName = "Evaluate should throw exception for invalid expressions")]
         [InlineData("9/0", "Division by zero")]
         [InlineData("2--3", "Invalid sequence '--' at position 3")]
-        [InlineData("2-(4-(3+2)", "Mismatched parentheses at position 6")]
+        [InlineData("2-(4-(3+2)", "Mismatched parentheses at position 3")]
         [InlineData("2.1e5.3", "Invalid number at position 1")]
         public void GivenInvalidExpression_WhenEvaluateCalled_ThenThrowsException(string expression, string expectedMessage)
         {
