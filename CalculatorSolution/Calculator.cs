@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Text;
 
 namespace CalculatorSolution
 {
@@ -17,41 +15,145 @@ namespace CalculatorSolution
             _evaluator = new Evaluator();
         }
 
-        public double Evaluate(string expression, Dictionary<string, double> vars = null)
+        public List<double> Evaluate(string expression)
         {
-            vars ??= new Dictionary<string, double>();
+            if (string.IsNullOrWhiteSpace(expression))
+                throw new ArgumentException(ErrorMessages.InvalidExpression);
+
+            expression = RemoveComments(expression);
             
-            // If expression contains semicolons, use EvaluateMultiple
-            if (expression.Contains(';'))
+            var results = new List<double>();
+            var expressionList = SplitExpressions(expression);
+            var vars = new Dictionary<string, double>();
+
+            for (int i = 0; i < expressionList.Count; i++)
             {
-                var results = EvaluateMultiple(expression);
-                return results.Last(); // Return last result for single Evaluate call
+                var expr = expressionList[i];
+                if (string.IsNullOrEmpty(expr))
+                    continue;
+
+                try
+                {
+                    double result = ExecuteExpression(expr.Trim(), vars);
+                    results.Add(result);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Error in expression {i + 1}: '{expr}' - {ex.Message}");
+                }
+            }
+
+            return results;
+        }
+
+        private List<string> SplitExpressions(string expression)
+        {
+            var expressions = new List<string>();
+            var current = new StringBuilder();
+            int braceCount = 0;
+
+            for (int i = 0; i < expression.Length; i++)
+            {
+                char c = expression[i];
+
+                if (c == '{') braceCount++;
+                else if (c == '}') braceCount--;
+
+                if (c == ';' && braceCount == 0)
+                {
+                    if (current.Length > 0)
+                    {
+                        expressions.Add(current.ToString().Trim());
+                        current.Clear();
+                    }
+                }
+                else
+                {
+                    current.Append(c);
+                }
+            }
+
+            if (current.Length > 0)
+            {
+                expressions.Add(current.ToString().Trim());
+            }
+
+            return expressions;
+        }
+
+        private double ExecuteExpression(string expression, Dictionary<string, double> vars)
+        {
+            if (IsAssignment(expression))
+            {
+                return ExecuteAssignment(expression, vars);
             }
             
-            // Handle complex conditional expressions with blocks
-            if (expression.Trim().StartsWith("if") && expression.Contains('{'))
+            if (expression.StartsWith("if") && expression.Contains('{'))
             {
-                return EvaluateBlockConditional(expression, vars);
+                return ExecuteBlockConditional(expression, vars);
             }
             
-            // Handle simple conditional expressions
-            if (expression.Trim().StartsWith("if"))
+            if (expression.StartsWith("if"))
             {
-                return EvaluateSimpleConditional(expression, vars);
+                return ExecuteSimpleConditional(expression, vars);
             }
             
-            // Handle assignment expressions like "x=5"
-            if (expression.Contains('=') && !expression.Contains("if") && !expression.Contains("=="))
-            {
-                return HandleAssignment(expression, vars);
-            }
-            
+            return EvaluateExpression(expression, vars);
+        }
+
+        private double EvaluateExpression(string expression, Dictionary<string, double> vars)
+        {
             var tokens = _tokenizer.Tokenize(expression);
             var rpn = _parser.ToRPN(tokens);
             return _evaluator.EvaluateRPN(rpn, vars);
         }
 
-        private double HandleAssignment(string expression, Dictionary<string, double> vars)
+        private bool IsAssignment(string expression)
+        {
+            if (!expression.Contains('=') || expression.Contains("if") || expression.Contains("=="))
+                return false;
+
+            var parts = expression.Split('=', 2);
+            if (parts.Length != 2) return false;
+
+            var varName = parts[0].Trim();
+            return varName.All(char.IsLetter) && varName.Length > 0;
+        }
+
+        private string RemoveComments(string expression)
+        {
+            var result = new StringBuilder();
+            bool inComment = false;
+
+            for (int i = 0; i < expression.Length; i++)
+            {
+                char c = expression[i];
+                
+                if (c == '/' && i + 1 < expression.Length && expression[i + 1] == '/')
+                {
+                    inComment = true;
+                    i++; 
+                    continue;
+                }
+                
+                if (inComment && (c == '\n' || c == '\r'))
+                {
+                    inComment = false;
+                    continue;
+                }
+                
+                if (inComment)
+                {
+                    continue;
+                }
+                
+                result.Append(c);
+            }
+            
+            return result.ToString();
+        }
+
+        private double ExecuteAssignment(string expression, Dictionary<string, double> vars)
         {
             var parts = expression.Split('=', 2);
             if (parts.Length != 2)
@@ -59,12 +161,12 @@ namespace CalculatorSolution
 
             var varName = parts[0].Trim().ToLower();
             ValidateVariableName(varName);
-            var value = Evaluate(parts[1].Trim(), vars);
+            var value = ExecuteExpression(parts[1].Trim(), vars);
             vars[varName] = value;
             return value;
         }
 
-        private double EvaluateSimpleConditional(string expression, Dictionary<string, double> vars)
+        private double ExecuteSimpleConditional(string expression, Dictionary<string, double> vars)
         {
             string expr = expression.Trim();
             
@@ -77,28 +179,26 @@ namespace CalculatorSolution
                 string condition = expr.Substring(conditionStart, conditionEnd - conditionStart).Trim();
                 string rest = expr.Substring(conditionEnd + 1).Trim();
                 
-                // Evaluate condition
-                double conditionResult = Evaluate(condition, vars);
+                double conditionResult = EvaluateExpression(condition, vars);
                 
-                // Handle if-else
                 if (rest.Contains("else"))
                 {
                     int elseIndex = rest.IndexOf("else");
                     string truePart = rest.Substring(0, elseIndex).Trim();
                     string falsePart = rest.Substring(elseIndex + 4).Trim();
                     
-                    return conditionResult != 0 ? Evaluate(truePart, vars) : Evaluate(falsePart, vars);
+                    return conditionResult != 0 ? ExecuteExpression(truePart, vars) : ExecuteExpression(falsePart, vars);
                 }
                 else
                 {
-                    return conditionResult != 0 ? Evaluate(rest, vars) : 0;
+                    return conditionResult != 0 ? ExecuteExpression(rest, vars) : 0;
                 }
             }
             
             throw new ArgumentException(ErrorMessages.InvalidConditional);
         }
 
-        private double EvaluateBlockConditional(string expression, Dictionary<string, double> vars)
+        private double ExecuteBlockConditional(string expression, Dictionary<string, double> vars)
         {
             string expr = expression.Trim();
             
@@ -111,10 +211,8 @@ namespace CalculatorSolution
                 string condition = expr.Substring(conditionStart, conditionEnd - conditionStart).Trim();
                 string rest = expr.Substring(conditionEnd + 1).Trim();
                 
-                // Evaluate condition
-                double conditionResult = Evaluate(condition, vars);
+                double conditionResult = EvaluateExpression(condition, vars);
                 
-                // Extract true block (inside {})
                 int trueBlockStart = rest.IndexOf('{');
                 int trueBlockEnd = FindMatchingBrace(rest, trueBlockStart);
                 if (trueBlockStart == -1 || trueBlockEnd == -1) 
@@ -123,7 +221,6 @@ namespace CalculatorSolution
                 string trueBlock = rest.Substring(trueBlockStart + 1, trueBlockEnd - trueBlockStart - 1).Trim();
                 string afterTrueBlock = rest.Substring(trueBlockEnd + 1).Trim();
                 
-                // Handle else block
                 if (afterTrueBlock.StartsWith("else"))
                 {
                     string elsePart = afterTrueBlock.Substring(4).Trim();
@@ -135,36 +232,37 @@ namespace CalculatorSolution
                         if (elseBlockEnd == -1) throw new ArgumentException(ErrorMessages.MismatchedBraces);
                         
                         string elseBlock = elsePart.Substring(1, elseBlockEnd - 1).Trim();
-                        return conditionResult != 0 ? EvaluateBlock(trueBlock, vars) : EvaluateBlock(elseBlock, vars);
+                        return conditionResult != 0 ? ExecuteBlock(trueBlock, vars) : ExecuteBlock(elseBlock, vars);
                     }
                     else
                     {
-                        // Simple else without braces
-                        return conditionResult != 0 ? EvaluateBlock(trueBlock, vars) : Evaluate(elsePart, vars);
+                        return conditionResult != 0 ? ExecuteBlock(trueBlock, vars) : ExecuteExpression(elsePart, vars);
                     }
                 }
                 else
                 {
-                    // No else block
-                    return conditionResult != 0 ? EvaluateBlock(trueBlock, vars) : 0;
+                    return conditionResult != 0 ? ExecuteBlock(trueBlock, vars) : 0;
                 }
             }
             
             throw new ArgumentException(ErrorMessages.InvalidConditional);
         }
 
-        private double EvaluateBlock(string block, Dictionary<string, double> vars)
+        private double ExecuteBlock(string block, Dictionary<string, double> vars)
         {
-            // A block may contain multiple statements separated by semicolons
-            if (block.Contains(';'))
+            var blockResults = new List<double>();
+            var blockExpressions = SplitExpressions(block);
+            
+            foreach (var expr in blockExpressions)
             {
-                var results = EvaluateMultiple(block);
-                return results.Last();
+                if (string.IsNullOrEmpty(expr))
+                    continue;
+                    
+                double result = ExecuteExpression(expr.Trim(), vars);
+                blockResults.Add(result);
             }
-            else
-            {
-                return Evaluate(block, vars);
-            }
+            
+            return blockResults.Count > 0 ? blockResults.Last() : 0;
         }
 
         private int FindMatchingBrace(string text, int startIndex)
@@ -178,59 +276,6 @@ namespace CalculatorSolution
                 if (braceCount == 0) return i;
             }
             return -1;
-        }
-
-        public List<double> EvaluateMultiple(string expressions)
-        {
-            if (string.IsNullOrWhiteSpace(expressions))
-                throw new ArgumentException(ErrorMessages.InvalidExpression);
-
-            var results = new List<double>();
-            var expressionList = expressions.Split(Constants.ExpressionSeparator, StringSplitOptions.RemoveEmptyEntries);
-            var vars = new Dictionary<string, double>();
-
-            for (int i = 0; i < expressionList.Length; i++)
-            {
-                var expression = expressionList[i].Trim();
-                if (string.IsNullOrEmpty(expression))
-                    continue;
-
-                try
-                {
-                    double result = HandleExpression(expression, vars);
-                    results.Add(result);
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception(string.Format(ErrorMessages.ExpressionError, i + 1, expression, ex.Message));
-                }
-            }
-
-            return results;
-        }
-
-        private double HandleExpression(string expression, Dictionary<string, double> vars)
-        {
-            // Handle complex conditional with blocks
-            if (expression.Trim().StartsWith("if") && expression.Contains('{'))
-            {
-                return EvaluateBlockConditional(expression, vars);
-            }
-            
-            // Handle simple conditional
-            if (expression.Trim().StartsWith("if"))
-            {
-                return EvaluateSimpleConditional(expression, vars);
-            }
-            
-            // Handle assignment
-            if (expression.Contains('=') && !expression.Contains("if") && !expression.Contains("=="))
-            {
-                return HandleAssignment(expression, vars);
-            }
-            
-            // Handle regular expression
-            return Evaluate(expression, vars);
         }
 
         private void ValidateVariableName(string varName)

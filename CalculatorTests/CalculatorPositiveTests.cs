@@ -1,6 +1,3 @@
-using System;
-using Xunit;
-
 namespace CalculatorSolution.Tests
 {
     public class CalculatorPositiveTests : IDisposable
@@ -12,9 +9,9 @@ namespace CalculatorSolution.Tests
             _calculator = new Calculator();
         }
 
-        [Theory(DisplayName = "Evaluate should return correct result for valid expressions")]
+        [Theory(DisplayName = "Evaluate should return correct results for valid expressions")]
         [InlineData("1+3", 4.0)]
-        [InlineData("-1", -1.0)] 
+        [InlineData("-1", -1.0)]
         [InlineData("-1-1", -2.0)]
         [InlineData("-(1+1)", -2.0)]
         [InlineData("((2))", 2.0)]
@@ -43,33 +40,43 @@ namespace CalculatorSolution.Tests
         [InlineData("if (0) 5", 0.0)]
         [InlineData("if (5 > 3) 10 else 20", 10.0)]
         [InlineData("if (5 < 3) 10 else 20", 20.0)]
-        [InlineData("x=5; if (x > 3) x=10; x", 10.0)]
-        [InlineData("x=2; if (x > 3) x=10; x", 2.0)]
-        [InlineData("x=5; if (x > 10) y=1 else y=2; y", 2.0)]
-        [InlineData("x=15; if (x > 10) y=1 else y=2; y", 1.0)]
-        [InlineData("x=2; if (x>1) y=10 else y=0; y", 10.0)]
-        [InlineData("x=5; if (x>10) y=1 else y=9; y", 9.0)]
-        [InlineData("x=10; y=0; if (x>5) y=100 else y=50; y", 100.0)]
-        [InlineData("x=5; y=2; if (x>1) { if (y<3) z=10 else z=0 } else z=-1; z", 10.0)]
-        [InlineData("x=0; y=2; if (x>1) { if (y<3) z=10 else z=0 } else z=-1; z", -1.0)]
-        public void GivenValidExpression_WhenEvaluateCalled_ThenReturnsExpectedResult(string expression, double expected, double precision = 1e-10)
+        [InlineData("(2 + 3) * 4 // считаем выражение в скобках", 20.0)]
+        public void GivenSingleExpression_WhenEvaluateCalled_ThenReturnsSingleResult(string expression, double expected, double precision = 1e-10)
         {
-            double result = _calculator.Evaluate(expression);
-            Assert.Equal(expected, result, precision);
+            var results = _calculator.Evaluate(expression);
+            Assert.Single(results);
+            Assert.Equal(expected, results[0], precision);
         }
 
-        [Theory(DisplayName = "EvaluateMultiple should handle multiple expressions separated by semicolons")]
+        [Theory(DisplayName = "Evaluate should handle expressions with variables and conditions")]
+        [InlineData("x=5; if (x > 3) x=10; x", new[] { 5.0, 10.0, 10.0 })] 
+        [InlineData("x=2; if (x > 3) x=10;", new[] { 2.0, 0.0 })]         
+        [InlineData("x=2; if (x > 3) x=10; x", new[] { 2.0, 0.0 , 2.0 })]      
+        [InlineData("x=5; if (x > 10) y=1 else y=2; y", new[] { 5.0, 2.0 ,2.0})] 
+        [InlineData("x=15; if (x > 10) y=1 else y=2;", new[] { 15.0, 1.0 })] 
+        [InlineData("x=2; if (x>1) y=10 else y=0;", new[] { 2.0, 10.0 })]
+        [InlineData("x=5; if (x>10) y=1 else y=9;", new[] { 5.0, 9.0 })]
+        [InlineData("x=10; y=0; if (x>5) y=100 else y=50;", new[] { 10.0, 0.0, 100.0 })]
+        [InlineData("x=5; y=2; if (x>1) { if (y<3) z=10 else z=0 } else z=-1;", new[] { 5.0, 2.0, 10.0 })]
+        [InlineData("x=0; y=2; if (x>1) { if (y<3) z=10 else z=0 } else z=-1;", new[] { 0.0, 2.0, -1.0 })]
+        public void GivenComplexExpressions_WhenEvaluateCalled_ThenReturnsCorrectResults(string expressions, double[] expected)
+        {
+            var results = _calculator.Evaluate(expressions);
+            Assert.Equal(expected, results);
+        }
+
+        [Theory(DisplayName = "Evaluate should handle multiple expressions separated by semicolons")]
         [InlineData("2+3; 4*2; 3-4", new[] { 5.0, 8.0, -1.0 })]
         [InlineData("1+1; 2*2; 3/2", new[] { 2.0, 4.0, 1.5 })]
         [InlineData("sin(0); cos(0)", new[] { 0.0, 1.0 })]
         [InlineData("5", new[] { 5.0 })]
         [InlineData("x=1+2; y=x-3; x+y; 7*8", new[] { 3.0, 0.0, 3.0, 56.0 })]
-        public void GivenMultipleExpressions_WhenEvaluateMultipleCalled_ThenReturnsAllResults(string expressions, double[] expected)
+        [InlineData("x = 1; x=x+1; x", new[] { 1.0, 2.0, 2.0 })] // Убрали комментарии для простоты
+        public void GivenMultipleExpressions_WhenEvaluateCalled_ThenReturnsAllResults(string expressions, double[] expected)
         {
-            var results = _calculator.EvaluateMultiple(expressions);
+            var results = _calculator.Evaluate(expressions);
             Assert.Equal(expected, results);
         }
-
         public void Dispose()
         {
         }

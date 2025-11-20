@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace CalculatorSolution
 {
     public class Evaluator
@@ -92,13 +89,8 @@ namespace CalculatorSolution
 
         private void HandleKeyword(Token token, Stack<double> stack, Dictionary<string, double> vars)
         {
-            // For basic conditional support, treat "if" as identity function
-            // This is a simplified approach - in real implementation you'd need control flow
             if (token.Value == "if" || token.Value == "else")
             {
-                // In proper implementation, this would handle control flow
-                // For now, we'll use a simplified approach where conditions are evaluated as numbers
-                // 0 is false, non-zero is true
             }
         }
     }

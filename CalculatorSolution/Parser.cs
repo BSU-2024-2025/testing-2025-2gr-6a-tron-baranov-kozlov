@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace CalculatorSolution
 {
     public class Parser
@@ -26,7 +23,6 @@ namespace CalculatorSolution
                         opStack.Push(token);
                         break;
                     case "keyword":
-                        // For now, treat keywords as variables in RPN - they will be handled in evaluation
                         output.Add(token);
                         break;
                     case "operator":

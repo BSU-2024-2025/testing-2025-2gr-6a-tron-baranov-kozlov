@@ -20,20 +20,11 @@ namespace CalculatorSolution
               
                 try
                 {
-                    // Проверяем, содержит ли ввод точку с запятой
-                    if (input.Contains(';'))
+                    var results = calc.Evaluate(input);
+                    Console.WriteLine("Results:");
+                    for (int i = 0; i < results.Count; i++)
                     {
-                        var results = calc.EvaluateMultiple(input);
-                        Console.WriteLine("Results:");
-                        for (int i = 0; i < results.Count; i++)
-                        {
-                            Console.WriteLine($" Expression {i + 1}: {results[i]}");
-                        }
-                    }
-                    else
-                    {
-                        double result = calc.Evaluate(input);
-                        Console.WriteLine($"Result: {result}");
+                        Console.WriteLine($" Expression {i + 1}: {results[i]}");
                     }
                 }
                 catch (Exception ex)
@@ -41,7 +32,7 @@ namespace CalculatorSolution
                     Console.WriteLine($"Error: {ex.Message}");
                 }
               
-                Console.WriteLine(); // Пустая строка для разделения
+                Console.WriteLine();
             }
         }
     }

@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
@@ -17,9 +15,19 @@ namespace CalculatorSolution
             while (i < expression.Length)
             {
                 char c = expression[i];
+                
                 if (char.IsWhiteSpace(c))
                 {
                     i++;
+                    continue;
+                }
+
+                if (c == '/' && i + 1 < expression.Length && expression[i + 1] == '/')
+                {
+                    while (i < expression.Length && expression[i] != '\n' && expression[i] != '\r')
+                    {
+                        i++;
+                    }
                     continue;
                 }
 
@@ -32,7 +40,6 @@ namespace CalculatorSolution
 
                 if (Constants.OperatorChars.Contains(c) || c == '=')
                 {
-                    // Check for comparison operators
                     if ((c == '<' || c == '>' || c == '!' || c == '=') && i + 1 < expression.Length && expression[i + 1] == '=')
                     {
                         tokens.Add(new Token { Type = "operator", Value = c.ToString() + "=", Position = i });
