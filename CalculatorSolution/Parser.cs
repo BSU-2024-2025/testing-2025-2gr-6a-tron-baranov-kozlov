@@ -16,7 +16,6 @@ namespace CalculatorSolution
             for (int i = 0; i < tokens.Count; i++)
             {
                 Token token = tokens[i];
-
                 switch (token.Type)
                 {
                     case "number":
@@ -25,6 +24,10 @@ namespace CalculatorSolution
                         break;
                     case "function":
                         opStack.Push(token);
+                        break;
+                    case "keyword":
+                        // For now, treat keywords as variables in RPN - they will be handled in evaluation
+                        output.Add(token);
                         break;
                     case "operator":
                         HandleOperator(token, tokens, i, output, opStack);
@@ -35,13 +38,19 @@ namespace CalculatorSolution
                     case "right":
                         HandleRightParenthesis(token, output, opStack);
                         break;
+                    case "left_brace":
+                        opStack.Push(token);
+                        break;
+                    case "right_brace":
+                        HandleRightBrace(token, output, opStack);
+                        break;
                 }
             }
 
             while (opStack.Count > 0)
             {
                 Token t = opStack.Pop();
-                if (t.Type == "left" || t.Type == "right")
+                if (t.Type == "left" || t.Type == "right" || t.Type == "left_brace" || t.Type == "right_brace")
                     throw new ArgumentException(string.Format(ErrorMessages.MismatchedParentheses, t.Position + 1));
                 output.Add(t);
             }
@@ -51,7 +60,9 @@ namespace CalculatorSolution
 
         private void HandleOperator(Token token, List<Token> tokens, int i, List<Token> output, Stack<Token> opStack)
         {
-            bool isUnary = i == 0 || tokens[i - 1].Type == "operator" || tokens[i - 1].Type == "left" || tokens[i - 1].Type == "function";
+            bool isUnary = i == 0 || tokens[i - 1].Type == "operator" || tokens[i - 1].Type == "left" || 
+                          tokens[i - 1].Type == "function" || tokens[i - 1].Type == "keyword" || 
+                          tokens[i - 1].Type == "left_brace";
 
             if (isUnary && token.Value == "-")
             {
@@ -63,7 +74,9 @@ namespace CalculatorSolution
             {
                 return;
             }
-            else if (!isUnary && i > 0 && tokens[i - 1].Type != "number" && tokens[i - 1].Type != "right" && tokens[i - 1].Type != "variable")
+            else if (!isUnary && i > 0 && tokens[i - 1].Type != "number" && 
+                     tokens[i - 1].Type != "right" && tokens[i - 1].Type != "variable" && 
+                     tokens[i - 1].Type != "right_brace" && tokens[i - 1].Type != "keyword")
             {
                 throw new ArgumentException(string.Format(ErrorMessages.UnexpectedOperator, token.Position + 1));
             }
@@ -82,13 +95,22 @@ namespace CalculatorSolution
             {
                 output.Add(opStack.Pop());
             }
-
             if (opStack.Count == 0)
                 throw new ArgumentException(string.Format(ErrorMessages.MismatchedParentheses, token.Position + 1));
-
             opStack.Pop();
             if (opStack.Count > 0 && opStack.Peek().Type == "function")
                 output.Add(opStack.Pop());
+        }
+
+        private void HandleRightBrace(Token token, List<Token> output, Stack<Token> opStack)
+        {
+            while (opStack.Count > 0 && opStack.Peek().Type != "left_brace")
+            {
+                output.Add(opStack.Pop());
+            }
+            if (opStack.Count == 0)
+                throw new ArgumentException(string.Format(ErrorMessages.MismatchedBraces, token.Position + 1));
+            opStack.Pop();
         }
 
         private int GetPrecedence(string op)
@@ -98,6 +120,7 @@ namespace CalculatorSolution
                 "+" or "-" => 1,
                 "*" or "/" => 2,
                 "u-" => 3,
+                "<" or ">" or "<=" or ">=" or "==" or "!=" => 0,
                 _ => 0
             };
         }

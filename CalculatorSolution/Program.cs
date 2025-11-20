@@ -10,14 +10,14 @@ namespace CalculatorSolution
             Console.WriteLine("Calculator with multiple expressions support");
             Console.WriteLine("Enter expressions separated by ';' to calculate multiple at once");
             Console.WriteLine("Type 'exit' to quit\n");
-            
+          
             while (true)
             {
                 Console.WriteLine("Enter an expression (or 'exit' to quit):");
                 string input = Console.ReadLine();
-                
+              
                 if (input.ToLower() == "exit") break;
-                
+              
                 try
                 {
                     // Проверяем, содержит ли ввод точку с запятой
@@ -27,7 +27,7 @@ namespace CalculatorSolution
                         Console.WriteLine("Results:");
                         for (int i = 0; i < results.Count; i++)
                         {
-                            Console.WriteLine($"  Expression {i + 1}: {results[i]}");
+                            Console.WriteLine($" Expression {i + 1}: {results[i]}");
                         }
                     }
                     else
@@ -40,7 +40,7 @@ namespace CalculatorSolution
                 {
                     Console.WriteLine($"Error: {ex.Message}");
                 }
-                
+              
                 Console.WriteLine(); // Пустая строка для разделения
             }
         }

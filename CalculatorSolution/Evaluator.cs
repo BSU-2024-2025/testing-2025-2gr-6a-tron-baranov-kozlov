@@ -30,6 +30,9 @@ namespace CalculatorSolution
                     case "function":
                         HandleFunction(token, stack);
                         break;
+                    case "keyword":
+                        HandleKeyword(token, stack, vars);
+                        break;
                 }
             }
 
@@ -64,6 +67,12 @@ namespace CalculatorSolution
                     if (b == 0) throw new ArgumentException(ErrorMessages.DivisionByZero);
                     stack.Push(a / b);
                     break;
+                case "<": stack.Push(a < b ? 1.0 : 0.0); break;
+                case ">": stack.Push(a > b ? 1.0 : 0.0); break;
+                case "<=": stack.Push(a <= b ? 1.0 : 0.0); break;
+                case ">=": stack.Push(a >= b ? 1.0 : 0.0); break;
+                case "==": stack.Push(Math.Abs(a - b) < 1e-10 ? 1.0 : 0.0); break;
+                case "!=": stack.Push(Math.Abs(a - b) > 1e-10 ? 1.0 : 0.0); break;
             }
         }
 
@@ -73,12 +82,23 @@ namespace CalculatorSolution
                 throw new ArgumentException(ErrorMessages.InvalidExpression);
 
             double arg = stack.Pop();
-
             switch (token.Value)
             {
                 case "sin": stack.Push(Math.Sin(arg)); break;
                 case "cos": stack.Push(Math.Cos(arg)); break;
                 case "exp": stack.Push(Math.Exp(arg)); break;
+            }
+        }
+
+        private void HandleKeyword(Token token, Stack<double> stack, Dictionary<string, double> vars)
+        {
+            // For basic conditional support, treat "if" as identity function
+            // This is a simplified approach - in real implementation you'd need control flow
+            if (token.Value == "if" || token.Value == "else")
+            {
+                // In proper implementation, this would handle control flow
+                // For now, we'll use a simplified approach where conditions are evaluated as numbers
+                // 0 is false, non-zero is true
             }
         }
     }
