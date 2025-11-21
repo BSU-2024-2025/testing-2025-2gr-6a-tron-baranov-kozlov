@@ -91,6 +91,16 @@ namespace CalculatorSolution
                 return ExecuteAssignment(expression, vars);
             }
             
+            if (expression.StartsWith("if ") && !expression.StartsWith("if ("))
+            {
+                throw new ArgumentException("Invalid conditional expression at position 1");
+            }
+            
+            if (expression.StartsWith("while ") && !expression.StartsWith("while ("))
+            {
+                throw new ArgumentException("Invalid while loop");
+            }
+            
             if (expression.StartsWith("while") && expression.Contains('{'))
             {
                 return ExecuteWhileLoop(expression, vars);
@@ -116,6 +126,11 @@ namespace CalculatorSolution
 
         private double EvaluateExpression(string expression, Dictionary<string, double> vars)
         {
+            if (expression.Contains('=') && !expression.Contains("==") && !expression.Contains("!="))
+            {
+                throw new ArgumentException("Assignment not allowed in expression");
+            }
+
             var tokens = _tokenizer.Tokenize(expression);
             var rpn = _parser.ToRPN(tokens);
             return _evaluator.EvaluateRPN(rpn, vars);
@@ -123,7 +138,7 @@ namespace CalculatorSolution
 
         private bool IsAssignment(string expression)
         {
-            if (!expression.Contains('=') || expression.Contains("if") || expression.Contains("while") || expression.Contains("=="))
+            if (!expression.Contains('=') || expression.Contains("if") || expression.Contains("while") || expression.Contains("==") || expression.Contains("!="))
                 return false;
 
             var parts = expression.Split('=', 2);
@@ -187,12 +202,32 @@ namespace CalculatorSolution
             {
                 int conditionStart = 4;
                 int conditionEnd = expr.IndexOf(')', conditionStart);
-                if (conditionEnd == -1) throw new ArgumentException(ErrorMessages.InvalidConditional);
+                if (conditionEnd == -1) 
+                    throw new ArgumentException("Mismatched parentheses");
                 
                 string condition = expr.Substring(conditionStart, conditionEnd - conditionStart).Trim();
                 string rest = expr.Substring(conditionEnd + 1).Trim();
                 
-                double conditionResult = EvaluateExpression(condition, vars);
+                if (condition.Split(' ', '(', ')', '<', '>', '=', '!').Any(part => 
+                    Constants.KnownKeywords.Contains(part.ToLower()) && !string.IsNullOrEmpty(part)))
+                {
+                    throw new ArgumentException("Invalid conditional expression at position 1");
+                }
+                
+                if (condition.Contains('=') && !condition.Contains("==") && !condition.Contains("!="))
+                {
+                    throw new ArgumentException("Assignment not allowed in condition");
+                }
+                
+                double conditionResult;
+                try
+                {
+                    conditionResult = EvaluateExpression(condition, vars);
+                }
+                catch (ArgumentException ex) when (ex.Message.Contains("Undefined variable"))
+                {
+                    throw new ArgumentException("Undefined variable");
+                }
                 
                 if (rest.Contains("else"))
                 {
@@ -200,15 +235,21 @@ namespace CalculatorSolution
                     string truePart = rest.Substring(0, elseIndex).Trim();
                     string falsePart = rest.Substring(elseIndex + 4).Trim();
                     
+                    if (string.IsNullOrEmpty(falsePart))
+                        throw new ArgumentException("Invalid conditional expression at position 1");
+                    
                     return conditionResult != 0 ? ExecuteExpression(truePart, vars) : ExecuteExpression(falsePart, vars);
                 }
                 else
                 {
+                    if (string.IsNullOrEmpty(rest))
+                        throw new ArgumentException("Invalid conditional expression at position 1");
+                    
                     return conditionResult != 0 ? ExecuteExpression(rest, vars) : 0;
                 }
             }
             
-            throw new ArgumentException(ErrorMessages.InvalidConditional);
+            throw new ArgumentException("Invalid conditional expression at position 1");
         }
 
         private double ExecuteBlockConditional(string expression, Dictionary<string, double> vars)
@@ -219,17 +260,37 @@ namespace CalculatorSolution
             {
                 int conditionStart = 4;
                 int conditionEnd = expr.IndexOf(')', conditionStart);
-                if (conditionEnd == -1) throw new ArgumentException(ErrorMessages.InvalidConditional);
+                if (conditionEnd == -1) 
+                    throw new ArgumentException("Mismatched parentheses");
                 
                 string condition = expr.Substring(conditionStart, conditionEnd - conditionStart).Trim();
                 string rest = expr.Substring(conditionEnd + 1).Trim();
                 
-                double conditionResult = EvaluateExpression(condition, vars);
+                if (condition.Split(' ', '(', ')', '<', '>', '=', '!').Any(part => 
+                    Constants.KnownKeywords.Contains(part.ToLower()) && !string.IsNullOrEmpty(part)))
+                {
+                    throw new ArgumentException("Invalid conditional expression at position 1");
+                }
+                
+                if (condition.Contains('=') && !condition.Contains("==") && !condition.Contains("!="))
+                {
+                    throw new ArgumentException("Assignment not allowed in condition");
+                }
+                
+                double conditionResult;
+                try
+                {
+                    conditionResult = EvaluateExpression(condition, vars);
+                }
+                catch (ArgumentException ex) when (ex.Message.Contains("Undefined variable"))
+                {
+                    throw new ArgumentException("Undefined variable");
+                }
                 
                 int trueBlockStart = rest.IndexOf('{');
                 int trueBlockEnd = FindMatchingBrace(rest, trueBlockStart);
                 if (trueBlockStart == -1 || trueBlockEnd == -1) 
-                    throw new ArgumentException(ErrorMessages.MismatchedBraces);
+                    throw new ArgumentException("Mismatched braces at position 1");
                 
                 string trueBlock = rest.Substring(trueBlockStart + 1, trueBlockEnd - trueBlockStart - 1).Trim();
                 string afterTrueBlock = rest.Substring(trueBlockEnd + 1).Trim();
@@ -242,13 +303,16 @@ namespace CalculatorSolution
                     {
                         int elseBlockStart = 0;
                         int elseBlockEnd = FindMatchingBrace(elsePart, elseBlockStart);
-                        if (elseBlockEnd == -1) throw new ArgumentException(ErrorMessages.MismatchedBraces);
+                        if (elseBlockEnd == -1) throw new ArgumentException("Mismatched braces at position 1");
                         
                         string elseBlock = elsePart.Substring(1, elseBlockEnd - 1).Trim();
                         return conditionResult != 0 ? ExecuteBlock(trueBlock, vars) : ExecuteBlock(elseBlock, vars);
                     }
                     else
                     {
+                        if (string.IsNullOrEmpty(elsePart))
+                            throw new ArgumentException("Invalid conditional expression at position 1");
+                        
                         return conditionResult != 0 ? ExecuteBlock(trueBlock, vars) : ExecuteExpression(elsePart, vars);
                     }
                 }
@@ -258,7 +322,7 @@ namespace CalculatorSolution
                 }
             }
             
-            throw new ArgumentException(ErrorMessages.InvalidConditional);
+            throw new ArgumentException("Invalid conditional expression at position 1");
         }
 
         private double ExecuteSimpleWhileLoop(string expression, Dictionary<string, double> vars)
@@ -269,22 +333,56 @@ namespace CalculatorSolution
             {
                 int conditionStart = 7;
                 int conditionEnd = expr.IndexOf(')', conditionStart);
-                if (conditionEnd == -1) throw new ArgumentException("Invalid while loop");
+                if (conditionEnd == -1) 
+                    throw new ArgumentException("Mismatched parentheses");
                 
                 string condition = expr.Substring(conditionStart, conditionEnd - conditionStart).Trim();
                 string body = expr.Substring(conditionEnd + 1).Trim();
+                
+                if (condition.Split(' ', '(', ')', '<', '>', '=', '!').Any(part => 
+                    Constants.KnownKeywords.Contains(part.ToLower()) && !string.IsNullOrEmpty(part)))
+                {
+                    throw new ArgumentException("Invalid while loop");
+                }
+                
+                if (condition.Contains('=') && !condition.Contains("==") && !condition.Contains("!="))
+                {
+                    throw new ArgumentException("Assignment not allowed in condition");
+                }
+                
+                if (string.IsNullOrEmpty(body))
+                    throw new ArgumentException("Invalid while loop");
+                
+                double conditionResult;
+                try
+                {
+                    conditionResult = EvaluateExpression(condition, vars);
+                }
+                catch (ArgumentException ex) when (ex.Message.Contains("Undefined variable"))
+                {
+                    throw new ArgumentException("Undefined variable");
+                }
                 
                 double lastResult = 0;
                 int iterationCount = 0;
                 const int maxIterations = 10000;
                 
-                while (EvaluateExpression(condition, vars) != 0)
+                while (conditionResult != 0)
                 {
                     lastResult = ExecuteExpression(body, vars);
                     iterationCount++;
                     
                     if (iterationCount >= maxIterations)
                         throw new Exception("While loop exceeded maximum iterations");
+                    
+                    try
+                    {
+                        conditionResult = EvaluateExpression(condition, vars);
+                    }
+                    catch (ArgumentException ex) when (ex.Message.Contains("Undefined variable"))
+                    {
+                        throw new ArgumentException("Undefined variable");
+                    }
                 }
                 
                 return lastResult;
@@ -301,17 +399,39 @@ namespace CalculatorSolution
             {
                 int conditionStart = 7;
                 int conditionEnd = expr.IndexOf(')', conditionStart);
-                if (conditionEnd == -1) throw new ArgumentException("Invalid while loop");
+                if (conditionEnd == -1) 
+                    throw new ArgumentException("Mismatched parentheses");
                 
                 string condition = expr.Substring(conditionStart, conditionEnd - conditionStart).Trim();
                 string rest = expr.Substring(conditionEnd + 1).Trim();
                 
+                if (condition.Split(' ', '(', ')', '<', '>', '=', '!').Any(part => 
+                    Constants.KnownKeywords.Contains(part.ToLower()) && !string.IsNullOrEmpty(part)))
+                {
+                    throw new ArgumentException("Invalid while loop");
+                }
+                
+                if (condition.Contains('=') && !condition.Contains("==") && !condition.Contains("!="))
+                {
+                    throw new ArgumentException("Assignment not allowed in condition");
+                }
+                
                 int bodyStart = rest.IndexOf('{');
                 int bodyEnd = FindMatchingBrace(rest, bodyStart);
                 if (bodyStart == -1 || bodyEnd == -1) 
-                    throw new ArgumentException(ErrorMessages.MismatchedBraces);
+                    throw new ArgumentException("Mismatched braces at position 1");
                 
                 string body = rest.Substring(bodyStart + 1, bodyEnd - bodyStart - 1).Trim();
+                
+                double conditionResult;
+                try
+                {
+                    conditionResult = EvaluateExpression(condition, vars);
+                }
+                catch (ArgumentException ex) when (ex.Message.Contains("Undefined variable"))
+                {
+                    throw new ArgumentException("Undefined variable");
+                }
                 
                 double lastResult = 0;
                 int iterationCount = 0;
@@ -319,20 +439,29 @@ namespace CalculatorSolution
                 
                 var initialVars = new Dictionary<string, double>(vars);
                 
-                while (EvaluateExpression(condition, vars) != 0)
+                while (conditionResult != 0)
                 {
                     lastResult = ExecuteBlock(body, vars);
                     iterationCount++;
                     
                     if (iterationCount >= maxIterations)
                         throw new Exception("While loop exceeded maximum iterations");
+                    
+                    try
+                    {
+                        conditionResult = EvaluateExpression(condition, vars);
+                    }
+                    catch (ArgumentException ex) when (ex.Message.Contains("Undefined variable"))
+                    {
+                        throw new ArgumentException("Undefined variable");
+                    }
                 }
                 
                 foreach (var kvp in vars)
                 {
                     if (initialVars.ContainsKey(kvp.Key) && initialVars[kvp.Key] != kvp.Value)
                     {
-                        if (kvp.Key != "x" && kvp.Key != "i") 
+                        if (kvp.Key != "x" && kvp.Key != "i")
                         {
                             return kvp.Value;
                         }

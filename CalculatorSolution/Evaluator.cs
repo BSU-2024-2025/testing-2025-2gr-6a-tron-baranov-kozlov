@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace CalculatorSolution
 {
     public class Evaluator
@@ -18,7 +21,7 @@ namespace CalculatorSolution
                         break;
                     case "variable":
                         if (!vars.TryGetValue(token.Value, out double val))
-                            throw new ArgumentException(string.Format(ErrorMessages.UndefinedVariable, token.Value, token.Position + 1));
+                            throw new ArgumentException("Undefined variable");
                         stack.Push(val);
                         break;
                     case "operator":
