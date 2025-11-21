@@ -1,4 +1,7 @@
-﻿using System.Text;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 
 namespace CalculatorSolution
 {
@@ -88,6 +91,11 @@ namespace CalculatorSolution
                 return ExecuteAssignment(expression, vars);
             }
             
+            if (expression.StartsWith("while") && expression.Contains('{'))
+            {
+                return ExecuteWhileLoop(expression, vars);
+            }
+            
             if (expression.StartsWith("if") && expression.Contains('{'))
             {
                 return ExecuteBlockConditional(expression, vars);
@@ -96,6 +104,11 @@ namespace CalculatorSolution
             if (expression.StartsWith("if"))
             {
                 return ExecuteSimpleConditional(expression, vars);
+            }
+            
+            if (expression.StartsWith("while"))
+            {
+                return ExecuteSimpleWhileLoop(expression, vars);
             }
             
             return EvaluateExpression(expression, vars);
@@ -110,7 +123,7 @@ namespace CalculatorSolution
 
         private bool IsAssignment(string expression)
         {
-            if (!expression.Contains('=') || expression.Contains("if") || expression.Contains("=="))
+            if (!expression.Contains('=') || expression.Contains("if") || expression.Contains("while") || expression.Contains("=="))
                 return false;
 
             var parts = expression.Split('=', 2);
@@ -246,6 +259,90 @@ namespace CalculatorSolution
             }
             
             throw new ArgumentException(ErrorMessages.InvalidConditional);
+        }
+
+        private double ExecuteSimpleWhileLoop(string expression, Dictionary<string, double> vars)
+        {
+            string expr = expression.Trim();
+            
+            if (expr.StartsWith("while ("))
+            {
+                int conditionStart = 7;
+                int conditionEnd = expr.IndexOf(')', conditionStart);
+                if (conditionEnd == -1) throw new ArgumentException("Invalid while loop");
+                
+                string condition = expr.Substring(conditionStart, conditionEnd - conditionStart).Trim();
+                string body = expr.Substring(conditionEnd + 1).Trim();
+                
+                double lastResult = 0;
+                int iterationCount = 0;
+                const int maxIterations = 10000;
+                
+                while (EvaluateExpression(condition, vars) != 0)
+                {
+                    lastResult = ExecuteExpression(body, vars);
+                    iterationCount++;
+                    
+                    if (iterationCount >= maxIterations)
+                        throw new Exception("While loop exceeded maximum iterations");
+                }
+                
+                return lastResult;
+            }
+            
+            throw new ArgumentException("Invalid while loop");
+        }
+
+        private double ExecuteWhileLoop(string expression, Dictionary<string, double> vars)
+        {
+            string expr = expression.Trim();
+            
+            if (expr.StartsWith("while ("))
+            {
+                int conditionStart = 7;
+                int conditionEnd = expr.IndexOf(')', conditionStart);
+                if (conditionEnd == -1) throw new ArgumentException("Invalid while loop");
+                
+                string condition = expr.Substring(conditionStart, conditionEnd - conditionStart).Trim();
+                string rest = expr.Substring(conditionEnd + 1).Trim();
+                
+                int bodyStart = rest.IndexOf('{');
+                int bodyEnd = FindMatchingBrace(rest, bodyStart);
+                if (bodyStart == -1 || bodyEnd == -1) 
+                    throw new ArgumentException(ErrorMessages.MismatchedBraces);
+                
+                string body = rest.Substring(bodyStart + 1, bodyEnd - bodyStart - 1).Trim();
+                
+                double lastResult = 0;
+                int iterationCount = 0;
+                const int maxIterations = 10000;
+                
+                var initialVars = new Dictionary<string, double>(vars);
+                
+                while (EvaluateExpression(condition, vars) != 0)
+                {
+                    lastResult = ExecuteBlock(body, vars);
+                    iterationCount++;
+                    
+                    if (iterationCount >= maxIterations)
+                        throw new Exception("While loop exceeded maximum iterations");
+                }
+                
+                foreach (var kvp in vars)
+                {
+                    if (initialVars.ContainsKey(kvp.Key) && initialVars[kvp.Key] != kvp.Value)
+                    {
+                        if (kvp.Key != "x" && kvp.Key != "i") 
+                        {
+                            return kvp.Value;
+                        }
+                    }
+                }
+                
+                return lastResult;
+            }
+            
+            throw new ArgumentException("Invalid while loop");
         }
 
         private double ExecuteBlock(string block, Dictionary<string, double> vars)

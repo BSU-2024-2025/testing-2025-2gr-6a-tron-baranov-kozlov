@@ -1,3 +1,7 @@
+using System;
+using System.Linq;
+using Xunit;
+
 namespace CalculatorSolution.Tests
 {
     public class CalculatorPositiveTests : IDisposable
@@ -71,12 +75,27 @@ namespace CalculatorSolution.Tests
         [InlineData("sin(0); cos(0)", new[] { 0.0, 1.0 })]
         [InlineData("5", new[] { 5.0 })]
         [InlineData("x=1+2; y=x-3; x+y; 7*8", new[] { 3.0, 0.0, 3.0, 56.0 })]
-        [InlineData("x = 1; x=x+1; x", new[] { 1.0, 2.0, 2.0 })] // Убрали комментарии для простоты
+        [InlineData("x = 1; x=x+1; x", new[] { 1.0, 2.0, 2.0 })]
         public void GivenMultipleExpressions_WhenEvaluateCalled_ThenReturnsAllResults(string expressions, double[] expected)
         {
             var results = _calculator.Evaluate(expressions);
             Assert.Equal(expected, results);
         }
+
+        [Theory(DisplayName = "Evaluate should handle while loops")]
+        [InlineData("x=0; while (x < 3) x=x+1; x", new[] { 0.0, 3.0, 3.0 })]
+        [InlineData("x=5; while (x > 0) x=x-1; x", new[] { 5.0, 0.0, 0.0 })]
+        [InlineData("x=1; y=1; while (x < 5) { y=y*x; x=x+1; } y", new[] { 1.0, 1.0, 24.0 })]
+        [InlineData("x=0; while (x < 0) x=x+1; x", new[] { 0.0, 0.0, 0.0 })]
+        [InlineData("x=10; while (x > 5) x=x-1; x", new[] { 10.0, 5.0, 5.0 })]
+        [InlineData("x=1; while (x < 10) x=x*2; x", new[] { 1.0, 16.0, 16.0 })]
+        [InlineData("x=2; while (x < 100) x=x*x; x", new[] { 2.0, 256.0, 256.0 })]
+        public void GivenWhileLoops_WhenEvaluateCalled_ThenReturnsCorrectResults(string expressions, double[] expected)
+        {
+            var results = _calculator.Evaluate(expressions);
+            Assert.Equal(expected, results);
+        }
+
         public void Dispose()
         {
         }
